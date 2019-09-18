@@ -2,7 +2,7 @@
 
 Naive implementation for decimal numbers in Rust.
 
-Inspired by https://github.com/paupino/rust-decimal but suppots different mantissa type.o
+Inspired by https://github.com/paupino/rust-decimal but suppots different mantissa type.
 
 WIP
 

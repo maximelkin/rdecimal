@@ -1,5 +1,8 @@
 extern crate num;
 
+#[cfg(feature = "serde")]
+mod serde_types;
+
 use std::cmp::Ordering;
 use std::convert::From;
 use std::fmt;
@@ -88,10 +91,10 @@ where
                 exponent = -(v[1].len() as i8);
                 let qt_mantissa = T::from_str_radix(v[0], 10)?;
                 let multiplier = num::pow(Self::num_10(), exponent.abs() as usize);
-                if qt_mantissa >= T::zero() {
-                    mantissa = qt_mantissa * multiplier + T::from_str_radix(v[1], 10)?;
-                } else {
+                if v[0].starts_with("-") {
                     mantissa = qt_mantissa * multiplier - T::from_str_radix(v[1], 10)?;
+                } else {
+                    mantissa = qt_mantissa * multiplier + T::from_str_radix(v[1], 10)?;
                 }
             }
             _ => {
@@ -117,15 +120,16 @@ where
             write!(f, "{}{}.", value, suffix)
         } else {
             let sign = if self.mantissa < T::zero() { "-" } else { "" };
-            let multiplier = num::pow(Self::num_10(), self.exponent.abs() as usize);
-            let (qt, rem) = self.mantissa.div_rem(&multiplier);
+            let norm = self.normalize();
+            let multiplier = num::pow(Self::num_10(), norm.exponent.abs() as usize);
+            let (qt, rem) = norm.mantissa.div_rem(&multiplier);
             write!(
                 f,
                 "{}{}.{:0width$}",
                 sign,
                 qt.to_i128().unwrap().abs(),
                 rem.to_i128().unwrap().abs(),
-                width = self.exponent.abs() as usize,
+                width = norm.exponent.abs() as usize,
             )
         }
     }
@@ -494,6 +498,7 @@ mod decimal_tests {
             Decimal::from_str("-11.02").unwrap(),
             Decimal::new(-1102, -2)
         );
+        assert_eq!(Decimal::from_str("-0.5").unwrap(), Decimal::new(-5, -1));
         assert!(D64::from_str("str").is_err());
         assert!(D64::from_str("11.00.11").is_err());
     }

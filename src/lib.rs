@@ -24,42 +24,81 @@ where
     pub exponent: i8,
 }
 
-impl<T> PartialEq for Decimal<T>
+// ######################### ORDER ############################################
+
+fn eq_impl<T>(first: &&Decimal<T>, second: &&Decimal<T>) -> bool
 where
     T: num::Integer + num::NumCast + Clone + Eq,
 {
+    let n_first = first.normalize();
+    let n_second = second.normalize();
+    return n_first.mantissa == n_second.mantissa && n_first.exponent == n_second.exponent;
+}
+
+impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq for Decimal<T> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        let n_self = self.normalize();
-        let n_other = other.normalize();
-        return n_self.mantissa == n_other.mantissa && n_self.exponent == n_other.exponent;
+        eq_impl(&self, &other)
     }
 }
 
-impl<T> Eq for Decimal<T> where T: num::Integer + num::NumCast + Clone + Eq {}
+impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq<&Decimal<T>> for Decimal<T> {
+    #[inline]
+    fn eq(&self, other: &&Decimal<T>) -> bool {
+        eq_impl(&self, other)
+    }
+}
 
-impl<T> Ord for Decimal<T>
+impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq<Decimal<T>> for &Decimal<T> {
+    #[inline]
+    fn eq(&self, other: &Decimal<T>) -> bool {
+        eq_impl(&self, &other)
+    }
+}
+
+impl<T: num::Integer + num::NumCast + Clone + Eq> Eq for Decimal<T> where {}
+
+fn cmp_impl<T>(first: &&Decimal<T>, second: &&Decimal<T>) -> Ordering
 where
     T: num::Integer + num::NumCast + Clone + Eq,
 {
+    // TODO: incorrect comparsion on mantissa overflow
+    let min_exp = std::cmp::min(first.exponent, second.exponent);
+    let m_first = first.to_exponent(min_exp);
+    let m_second = second.to_exponent(min_exp);
+
+    m_first.mantissa.cmp(&m_second.mantissa)
+}
+
+impl<T: num::Integer + num::NumCast + Clone + Eq> Ord for Decimal<T> {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        // TODO: incorrect comparsion on mantissa overflow
-        let min_exp = std::cmp::min(self.exponent, other.exponent);
-        let m_self = self.to_exponent(min_exp);
-        let m_other = other.to_exponent(min_exp);
-
-        m_self.mantissa.cmp(&m_other.mantissa)
+        cmp_impl(&self, &other)
     }
 }
 
-impl<T> PartialOrd for Decimal<T>
-where
-    T: num::Integer + num::NumCast + Clone + Eq,
-{
+impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd for Decimal<T> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        Some(cmp_impl(&self, &other))
     }
 }
+
+impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd<&Decimal<T>> for Decimal<T> {
+    #[inline]
+    fn partial_cmp(&self, other: &&Decimal<T>) -> Option<Ordering> {
+        Some(cmp_impl(&self, &other))
+    }
+}
+
+impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd<Decimal<T>> for &Decimal<T> {
+    #[inline]
+    fn partial_cmp(&self, other: &Decimal<T>) -> Option<Ordering> {
+        Some(cmp_impl(&self, &other))
+    }
+}
+
+// ######################### CONVERT ##########################################
 
 impl<U, T> From<U> for Decimal<T>
 where
@@ -134,6 +173,8 @@ where
         }
     }
 }
+
+// ######################### INIT #############################################
 
 impl<T> num::Zero for Decimal<T>
 where
@@ -508,6 +549,10 @@ mod decimal_tests {
         assert_eq!(Decimal::new(10, 0), Decimal::new(100, -1));
         assert_eq!(Decimal::new(1, 1), Decimal::new(10, 0));
 
+        assert_eq!(&Decimal::new(10, 0), Decimal::new(10, 0));
+        assert_eq!(Decimal::new(10, 0), &Decimal::new(100, -1));
+        assert_eq!(&Decimal::new(1, 1), &Decimal::new(10, 0));
+
         assert_ne!(Decimal::new(11, 0), Decimal::new(10, 0));
     }
 
@@ -540,6 +585,10 @@ mod decimal_tests {
     fn order_test() {
         assert!(Decimal::new(5, -1) < Decimal::new(75, -2));
         assert!(Decimal::new(5, -1) > Decimal::new(75, -3));
+
+        assert!(Decimal::new(5, -1) < &Decimal::new(75, -2));
+        assert!(&Decimal::new(5, -1) > Decimal::new(75, -3));
+        assert!(&Decimal::new(5, -1) > &Decimal::new(75, -3));
     }
 
     #[test]

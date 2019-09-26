@@ -366,7 +366,7 @@ where
 {
     fn mul_assign(&mut self, other: Self) {
         self.mantissa = self.mantissa.clone() * other.mantissa;
-        self.exponent = self.exponent * &other.exponent;
+        self.exponent = self.exponent + &other.exponent;
         self.inpl_normalize();
     }
 }
@@ -377,7 +377,7 @@ where
 {
     fn mul_assign(&mut self, other: &'a Self) {
         self.mantissa = self.mantissa.clone() * other.mantissa.clone();
-        self.exponent = self.exponent * &other.exponent;
+        self.exponent = self.exponent + &other.exponent;
         self.inpl_normalize();
     }
 }
@@ -595,6 +595,19 @@ mod decimal_tests {
     fn from_test() {
         assert_eq!(Decimal::from(5), Decimal::new(5, 0));
         assert_eq!(Decimal::from(5 as i8), Decimal::new(5, 0));
+    }
+
+    #[test]
+    fn arithmetics_test() {
+        assert_eq!(Decimal::new(5, 0) + Decimal::new(5, 0), Decimal::new(10, 0));
+        assert_eq!(Decimal::new(5, -1) + Decimal::new(5, -2), Decimal::new(55, -2));
+        
+        assert_eq!(Decimal::new(5, -1) - Decimal::new(5, -2), Decimal::new(45, -2));
+        assert_eq!(Decimal::new(5, -1) - Decimal::new(-5, -2), Decimal::new(55, -2));
+
+        assert_eq!(Decimal::new(5, -1) * Decimal::new(5, -2), Decimal::new(25, -3));
+        assert_eq!(Decimal::new(5, 1) * Decimal::new(5, -2), Decimal::new(25, -1));
+        assert_eq!(Decimal::new(5, -1) * Decimal::new(-5, -2), Decimal::new(-25, -3));
     }
 
     #[test]

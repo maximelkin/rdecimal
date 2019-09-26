@@ -399,6 +399,16 @@ where
         Decimal { mantissa, exponent }
     }
 
+    pub fn from_dec<U>(other: Decimal<U>) -> Self
+    where
+        U: num::Integer + num::NumCast + Clone + Into<T>,
+    {
+        Decimal {
+            mantissa: other.mantissa.into(),
+            exponent: other.exponent,
+        }
+    }
+
     pub fn inpl_normalize(&mut self) {
         loop {
             let (qt, rem) = self.mantissa.div_rem(&Self::num_10());
@@ -431,6 +441,54 @@ where
     pub fn to_exponent(&self, new_exp: i8) -> Self {
         let mut res = self.clone();
         res.inpl_to_exponent(new_exp);
+        res
+    }
+
+    pub fn inpl_floor(&mut self) {
+        if self.exponent >= 0 {
+            return;
+        }
+        if self.mantissa >= T::zero() {
+            self.inpl_to_exponent(0);
+            return;
+        }
+        let multiplier = num::pow(Self::num_10(), self.exponent.abs() as usize);
+        let (qt, rem) = self.mantissa.div_rem(&multiplier);
+
+        self.exponent = 0;
+        self.mantissa = qt;
+        if rem != T::zero() {
+            self.mantissa = self.mantissa.clone() - T::one();
+        }
+    }
+
+    pub fn floor(&self) -> Self {
+        let mut res = self.clone();
+        res.inpl_floor();
+        res
+    }
+
+    pub fn inpl_ceil(&mut self) {
+        if self.exponent >= 0 {
+            return;
+        }
+        if self.mantissa <= T::zero() {
+            self.inpl_to_exponent(0);
+            return;
+        }
+        let multiplier = num::pow(Self::num_10(), self.exponent.abs() as usize);
+        let (qt, rem) = self.mantissa.div_rem(&multiplier);
+
+        self.exponent = 0;
+        self.mantissa = qt;
+        if rem != T::zero() {
+            self.mantissa = self.mantissa.clone() + T::one();
+        }
+    }
+
+    pub fn ceil(&self) -> Self {
+        let mut res = self.clone();
+        res.inpl_ceil();
         res
     }
 
@@ -504,9 +562,29 @@ mod decimal_tests {
     }
 
     #[test]
-    fn to_string() {
+    fn to_string_test() {
         assert_eq!(Decimal::new(5, -1).to_string(), "0.5");
         assert_eq!(Decimal::new(5, 3).to_string(), "5000.");
         assert_eq!(Decimal::new(-5, -3).to_string(), "-0.005");
+    }
+
+    #[test]
+    fn convert_test() {
+        let dec = D64::new(5000, -2);
+        assert_eq!(D128::new(5000, -2), D128::from_dec(dec));
+    }
+
+    #[test]
+    fn floor_test() {
+        assert_eq!(Decimal::new(37, -1).floor(), Decimal::new(3, 0));
+        assert_eq!(Decimal::new(30, -1).floor(), Decimal::new(3, 0));
+        assert_eq!(Decimal::new(-37, -1).floor(), Decimal::new(-4, 0));
+    }
+
+    #[test]
+    fn ceil_test() {
+        assert_eq!(Decimal::new(301, -2).ceil(), Decimal::new(4, 0));
+        assert_eq!(Decimal::new(30, -1).ceil(), Decimal::new(3, 0));
+        assert_eq!(Decimal::new(-37, -1).ceil(), Decimal::new(-3, 0));
     }
 }

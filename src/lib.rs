@@ -1,5 +1,10 @@
 extern crate num;
 
+#[cfg(feature = "postgres")]
+#[macro_use]
+extern crate postgres;
+#[cfg(feature = "postgres")]
+mod postgres_types;
 #[cfg(feature = "serde")]
 mod serde_types;
 
@@ -451,6 +456,10 @@ where
     }
 
     pub fn inpl_normalize(&mut self) {
+        if self.mantissa.is_zero() {
+            self.exponent = 0;
+            return;
+        }
         loop {
             let (qt, rem) = self.mantissa.div_rem(&Self::num_10());
             if rem.is_zero() {
@@ -600,14 +609,32 @@ mod decimal_tests {
     #[test]
     fn arithmetics_test() {
         assert_eq!(Decimal::new(5, 0) + Decimal::new(5, 0), Decimal::new(10, 0));
-        assert_eq!(Decimal::new(5, -1) + Decimal::new(5, -2), Decimal::new(55, -2));
-        
-        assert_eq!(Decimal::new(5, -1) - Decimal::new(5, -2), Decimal::new(45, -2));
-        assert_eq!(Decimal::new(5, -1) - Decimal::new(-5, -2), Decimal::new(55, -2));
+        assert_eq!(
+            Decimal::new(5, -1) + Decimal::new(5, -2),
+            Decimal::new(55, -2)
+        );
 
-        assert_eq!(Decimal::new(5, -1) * Decimal::new(5, -2), Decimal::new(25, -3));
-        assert_eq!(Decimal::new(5, 1) * Decimal::new(5, -2), Decimal::new(25, -1));
-        assert_eq!(Decimal::new(5, -1) * Decimal::new(-5, -2), Decimal::new(-25, -3));
+        assert_eq!(
+            Decimal::new(5, -1) - Decimal::new(5, -2),
+            Decimal::new(45, -2)
+        );
+        assert_eq!(
+            Decimal::new(5, -1) - Decimal::new(-5, -2),
+            Decimal::new(55, -2)
+        );
+
+        assert_eq!(
+            Decimal::new(5, -1) * Decimal::new(5, -2),
+            Decimal::new(25, -3)
+        );
+        assert_eq!(
+            Decimal::new(5, 1) * Decimal::new(5, -2),
+            Decimal::new(25, -1)
+        );
+        assert_eq!(
+            Decimal::new(5, -1) * Decimal::new(-5, -2),
+            Decimal::new(-25, -3)
+        );
     }
 
     #[test]

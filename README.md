@@ -18,8 +18,16 @@ let f_str = D128::from_str("0.02").unwrap();
 let f_num = D64::from(10); // 10.
 ```
 
+## Features:
+
+* arithmetics (+, -, \*)
+* serde integration
+* postgres integration
+
+
 ## TODO:
 
 * division
 * docs
+* diesel support
 

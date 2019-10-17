@@ -61,7 +61,7 @@ impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq<Decimal<T>> for &Dec
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> Eq for Decimal<T> where {}
+impl<T: num::Integer + num::NumCast + Clone + Eq> Eq for Decimal<T> {}
 
 fn cmp_impl<T>(first: &&Decimal<T>, second: &&Decimal<T>) -> Ordering
 where
@@ -436,6 +436,11 @@ where
 
 // ######################### IMPL #############################################
 
+enum Round {
+    Floor,
+    Ceil,
+}
+
 impl<T> Decimal<T>
 where
     T: num::Integer + num::NumCast + Clone,
@@ -494,21 +499,22 @@ where
         res
     }
 
-    pub fn inpl_floor(&mut self) {
-        if self.exponent >= 0 {
-            return;
-        }
-        if self.mantissa >= T::zero() {
-            self.inpl_to_exponent(0);
-            return;
-        }
-        let multiplier = num::pow(Self::num_10(), self.exponent.abs() as usize);
-        let (qt, rem) = self.mantissa.div_rem(&multiplier);
+    pub fn round_ceil(&self, new_exp: i8) -> Self {
+        let mut res = self.clone();
+        res.inpl_to_exponent_round(new_exp, Round::Ceil);
+        res
+    }
 
-        self.exponent = 0;
-        self.mantissa = qt;
-        if rem != T::zero() {
-            self.mantissa = self.mantissa.clone() - T::one();
+    pub fn round_floor(&self, new_exp: i8) -> Self {
+        let mut res = self.clone();
+        res.inpl_to_exponent_round(new_exp, Round::Floor);
+        res
+    }
+
+    #[inline]
+    pub fn inpl_floor(&mut self) {
+        if self.exponent < 0 {
+            self.inpl_to_exponent_round(0, Round::Floor);
         }
     }
 
@@ -518,21 +524,10 @@ where
         res
     }
 
+    #[inline]
     pub fn inpl_ceil(&mut self) {
-        if self.exponent >= 0 {
-            return;
-        }
-        if self.mantissa <= T::zero() {
-            self.inpl_to_exponent(0);
-            return;
-        }
-        let multiplier = num::pow(Self::num_10(), self.exponent.abs() as usize);
-        let (qt, rem) = self.mantissa.div_rem(&multiplier);
-
-        self.exponent = 0;
-        self.mantissa = qt;
-        if rem != T::zero() {
-            self.mantissa = self.mantissa.clone() + T::one();
+        if self.exponent < 0 {
+            self.inpl_to_exponent_round(0, Round::Ceil);
         }
     }
 
@@ -540,6 +535,34 @@ where
         let mut res = self.clone();
         res.inpl_ceil();
         res
+    }
+
+    fn inpl_to_exponent_round(&mut self, new_exp: i8, round: Round) {
+        let exp_delta = new_exp - self.exponent;
+        let multiplier = num::pow(Self::num_10(), exp_delta.abs() as usize);
+        if exp_delta < 0 {
+            self.mantissa = self.mantissa.clone() * multiplier;
+        } else {
+            let (qt, rem) = self.mantissa.div_rem(&multiplier);
+            self.mantissa = match (self.mantissa >= T::zero(), round) {
+                (true, Round::Floor) | (false, Round::Ceil) => qt,
+                (true, Round::Ceil) => {
+                    qt + if rem == T::zero() {
+                        T::zero()
+                    } else {
+                        T::one()
+                    }
+                }
+                (false, Round::Floor) => {
+                    qt - if rem == T::zero() {
+                        T::zero()
+                    } else {
+                        T::one()
+                    }
+                }
+            }
+        }
+        self.exponent = new_exp;
     }
 
     #[inline]
@@ -668,6 +691,9 @@ mod decimal_tests {
         assert_eq!(Decimal::new(37, -1).floor(), Decimal::new(3, 0));
         assert_eq!(Decimal::new(30, -1).floor(), Decimal::new(3, 0));
         assert_eq!(Decimal::new(-37, -1).floor(), Decimal::new(-4, 0));
+
+        assert_eq!(Decimal::new(1, -6).round_floor(-3), Decimal::new(0, 0));
+        assert_eq!(Decimal::new(-1, -6).round_floor(-3), Decimal::new(-1, -3));
     }
 
     #[test]
@@ -675,5 +701,8 @@ mod decimal_tests {
         assert_eq!(Decimal::new(301, -2).ceil(), Decimal::new(4, 0));
         assert_eq!(Decimal::new(30, -1).ceil(), Decimal::new(3, 0));
         assert_eq!(Decimal::new(-37, -1).ceil(), Decimal::new(-3, 0));
+
+        assert_eq!(Decimal::new(1, -6).round_ceil(-3), Decimal::new(1, -3));
+        assert_eq!(Decimal::new(-1, -6).round_ceil(-3), Decimal::new(0, 0));
     }
 }

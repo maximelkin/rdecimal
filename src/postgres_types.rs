@@ -176,7 +176,7 @@ mod test {
             assert!(i.to_sql(&NUMERIC, &mut out).is_ok());
             let parsed = D64::from_sql(&NUMERIC, &out);
             match &parsed {
-                Ok(x) => {
+                Ok(_) => {
                     assert_eq!(parsed.unwrap(), i);
                 }
                 Err(e) => {
@@ -207,15 +207,15 @@ mod test {
         let conn =
             Connection::connect("postgresql://postgres@localhost:5432", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
-        trans.execute("CREATE TEMP TABLE temp(val NUMERIC(40, 15));", &[]);
+        trans.execute("CREATE TEMP TABLE temp(val NUMERIC(40, 15));", &[]).unwrap();
         for i in &test_data {
-            trans.execute("INSERT INTO temp VALUES ($1);", &[&i]);
+            trans.execute("INSERT INTO temp VALUES ($1);", &[&i]).unwrap();
         }
         let mut iter = test_data.iter();
         for row in &conn.query("SELECT val FROM temp;", &[]).unwrap() {
             let res: D64 = row.get(0);
             assert_eq!(res, iter.next().unwrap());
         }
-        trans.commit();
+        trans.commit().unwrap();
     }
 }

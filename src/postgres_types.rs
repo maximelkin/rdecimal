@@ -129,7 +129,6 @@ where
                 for i in mantissa_parts.iter().rev() {
                     out.write_i16::<BigEndian>(*i).unwrap();
                 }
-                println!("{:?}, {}", out, out.len());
 
                 Ok(IsNull::No)
             }

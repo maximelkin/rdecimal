@@ -155,6 +155,10 @@ where
     T: num::Integer + num::NumCast + Clone + Eq,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.mantissa.is_zero() {
+            return write!(f, "0.");
+        }
+
         if self.exponent >= 0 {
             let value = self.mantissa.to_i128().unwrap();
             let mut suffix = String::with_capacity(self.exponent.abs() as usize);

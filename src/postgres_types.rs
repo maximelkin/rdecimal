@@ -66,7 +66,7 @@ where
                     mantissa = T::zero() - mantissa;
                 }
                 let exponent = 4 * (scale - len + 1) as i8;
-                return Ok(Decimal::new(mantissa, exponent));
+                return Ok(Decimal::new(mantissa, exponent).normalize());
             }
             _ => {
                 return Err(Box::new(ConversionError::IncorrectType));
@@ -206,9 +206,13 @@ mod test {
         let conn =
             Connection::connect("postgresql://postgres@localhost:5432", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
-        trans.execute("CREATE TEMP TABLE temp(val NUMERIC(40, 15));", &[]).unwrap();
+        trans
+            .execute("CREATE TEMP TABLE temp(val NUMERIC(40, 15));", &[])
+            .unwrap();
         for i in &test_data {
-            trans.execute("INSERT INTO temp VALUES ($1);", &[&i]).unwrap();
+            trans
+                .execute("INSERT INTO temp VALUES ($1);", &[&i])
+                .unwrap();
         }
         let mut iter = test_data.iter();
         for row in &conn.query("SELECT val FROM temp;", &[]).unwrap() {

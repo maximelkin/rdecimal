@@ -7,12 +7,15 @@ extern crate postgres;
 mod postgres_types;
 #[cfg(feature = "serde")]
 mod serde_types;
+mod utils;
 
 use std::cmp::Ordering;
 use std::convert::From;
 use std::fmt;
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::str::FromStr;
+
+use utils::{dec_len, max_dec_len};
 
 // TODO: Div, DivAssign
 
@@ -438,6 +441,77 @@ where
     }
 }
 
+impl<T> DivAssign for Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+{
+    #[inline]
+    fn div_assign(&mut self, other: Self) {
+        self.inpl_div_assign(&other);
+    }
+}
+
+impl<'a, T> DivAssign<&'a Decimal<T>> for Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+{
+    #[inline]
+    fn div_assign(&mut self, other: &'a Self) {
+        self.inpl_div_assign(other);
+    }
+}
+
+impl<T> Div for Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+{
+    type Output = Self;
+
+    #[inline]
+    fn div(self, other: Self) -> Self {
+        self.div(&other)
+    }
+}
+
+impl<'a, T> Div<&'a Decimal<T>> for Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+{
+    type Output = Self;
+
+    #[inline]
+    fn div(mut self, other: &Self) -> Self {
+        self.div_assign(other);
+        self
+    }
+}
+
+impl<'a, T> Div<Decimal<T>> for &'a Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+{
+    type Output = Decimal<T>;
+
+    #[inline]
+    fn div(self, other: Decimal<T>) -> Self::Output {
+        self.div(&other)
+    }
+}
+
+impl<'a, T> Div for &'a Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+{
+    type Output = Decimal<T>;
+
+    #[inline]
+    fn div(self, other: &Decimal<T>) -> Self::Output {
+        let mut res = self.clone();
+        res.div_assign(other);
+        res
+    }
+}
+
 // ######################### IMPL #############################################
 
 enum Round {
@@ -575,6 +649,32 @@ where
     }
 }
 
+impl<T> Decimal<T>
+where
+    T: num::Integer + num::Bounded + num::NumCast + Clone,
+{
+    fn inpl_div_assign(&mut self, other: &Self) {
+        let max_len = max_dec_len::<T>();
+        let (mut qt, mut rem) = self.mantissa.div_rem(&other.mantissa);
+        let mut exp_delta: i8 = 0;
+
+        while rem != T::zero() && dec_len(&qt) < max_len - 1 {
+            let pow = ((dec_len(&other.mantissa) - dec_len(&rem) + 1) as isize
+                * (max_len as isize - dec_len(&qt) as isize)) as i8;
+            rem = rem * num::pow(Self::num_10(), pow as usize);
+            exp_delta -= pow;
+
+            let (n_qt, n_rem) = rem.div_rem(&other.mantissa);
+            rem = n_rem;
+            qt = qt * num::pow(Self::num_10(), dec_len(&n_qt)) + n_qt;
+        }
+
+        self.mantissa = qt;
+        self.exponent = self.exponent - &other.exponent + exp_delta;
+        self.inpl_normalize();
+    }
+}
+
 #[cfg(test)]
 mod decimal_tests {
     use super::*;
@@ -661,6 +761,17 @@ mod decimal_tests {
         assert_eq!(
             Decimal::new(5, -1) * Decimal::new(-5, -2),
             Decimal::new(-25, -3)
+        );
+        assert_eq!(Decimal::from(5) / Decimal::new(5, -2), Decimal::from(100));
+        assert_eq!(Decimal::from(5) / Decimal::new(-5, -2), Decimal::from(-100));
+        assert_eq!(Decimal::from(-5) / Decimal::new(5, -2), Decimal::from(-100));
+        assert_eq!(
+            Decimal::from(2) / Decimal::new(3, -1),
+            Decimal::new(666666666, -8)
+        );
+        assert_eq!(
+            Decimal::from(-2) / Decimal::new(3, -1),
+            Decimal::new(666666666, -8)
         );
     }
 

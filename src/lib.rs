@@ -659,8 +659,14 @@ where
         let mut exp_delta: i8 = 0;
 
         while rem != T::zero() && dec_len(&qt) < max_len - 1 {
-            let pow = ((dec_len(&other.mantissa) - dec_len(&rem) + 1) as isize
-                * (max_len as isize - dec_len(&qt) as isize)) as i8;
+            let pow = 1;
+            // TODO: Fix iterations number with no overflow error
+            // TODO: Don't forget about bug if qty starts with 0
+            // std::cmp::min(
+            //     (max_len - dec_len(&rem) - 2) as i8,
+            //     ((dec_len(&other.mantissa) - dec_len(&rem) + 1) as isize
+            //         * (max_len as isize - dec_len(&qt) as isize)) as i8,
+            // );
             rem = rem * num::pow(Self::num_10(), pow as usize);
             exp_delta -= pow;
 
@@ -771,7 +777,11 @@ mod decimal_tests {
         );
         assert_eq!(
             Decimal::from(-2) / Decimal::new(3, -1),
-            Decimal::new(666666666, -8)
+            Decimal::new(-666666666, -8)
+        );
+        assert_eq!(
+            Decimal::from(1) / Decimal::new(689395, -2),
+            Decimal::new(145054721, -12)
         );
     }
 

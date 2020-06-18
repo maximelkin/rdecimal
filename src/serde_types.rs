@@ -1,13 +1,11 @@
 use crate::Decimal;
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, str::FromStr};
 
 use serde::{self, de::Unexpected};
 
 impl<T> serde::Serialize for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -19,14 +17,14 @@ where
 
 struct DecimalVisitor<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     data: PhantomData<T>,
 }
 
 impl<'a, T> serde::de::Visitor<'a> for DecimalVisitor<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Value = Decimal<T>;
 
@@ -42,14 +40,20 @@ where
     where
         E: serde::de::Error,
     {
-        Ok(Decimal::from(value))
+        match T::from_i64(value) {
+            Some(value) => Ok(Decimal::from(value)),
+            None => Err(serde::de::Error::custom("i64 parsing error")),
+        }
     }
 
     fn visit_u64<E>(self, value: u64) -> Result<Decimal<T>, E>
     where
         E: serde::de::Error,
     {
-        Ok(Decimal::from(value))
+        match T::from_u64(value) {
+            Some(value) => Ok(Decimal::from(value)),
+            None => Err(serde::de::Error::custom("u64 parsing error")),
+        }
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Decimal<T>, E>
@@ -69,7 +73,7 @@ where
 
 impl<'a, T> serde::Deserialize<'a> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn deserialize<D>(deserializer: D) -> Result<Decimal<T>, D::Error>
     where

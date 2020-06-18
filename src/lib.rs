@@ -9,11 +9,13 @@ mod postgres_types;
 mod serde_types;
 mod utils;
 
-use std::cmp::Ordering;
-use std::convert::From;
-use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-use std::str::FromStr;
+use std::{
+    cmp::Ordering,
+    convert::From,
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
+};
 
 use utils::{dec_len, max_dec_len};
 
@@ -26,7 +28,7 @@ pub type D128 = Decimal<i128>;
 #[derive(Clone, Debug)]
 pub struct Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     pub mantissa: T,
     pub exponent: i8,
@@ -36,39 +38,45 @@ where
 
 fn eq_impl<T>(first: &&Decimal<T>, second: &&Decimal<T>) -> bool
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     let n_first = first.normalize();
     let n_second = second.normalize();
     return n_first.mantissa == n_second.mantissa && n_first.exponent == n_second.exponent;
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq for Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> PartialEq
+    for Decimal<T>
+{
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         eq_impl(&self, &other)
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq<&Decimal<T>> for Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> PartialEq<&Decimal<T>>
+    for Decimal<T>
+{
     #[inline]
     fn eq(&self, other: &&Decimal<T>) -> bool {
         eq_impl(&self, other)
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> PartialEq<Decimal<T>> for &Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> PartialEq<Decimal<T>>
+    for &Decimal<T>
+{
     #[inline]
     fn eq(&self, other: &Decimal<T>) -> bool {
         eq_impl(&self, &other)
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> Eq for Decimal<T> {}
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> Eq for Decimal<T> {}
 
 fn cmp_impl<T>(first: &&Decimal<T>, second: &&Decimal<T>) -> Ordering
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     // TODO: incorrect comparsion on mantissa overflow
     let min_exp = std::cmp::min(first.exponent, second.exponent);
@@ -78,28 +86,34 @@ where
     m_first.mantissa.cmp(&m_second.mantissa)
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> Ord for Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> Ord for Decimal<T> {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         cmp_impl(&self, &other)
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd for Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> PartialOrd
+    for Decimal<T>
+{
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(cmp_impl(&self, &other))
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd<&Decimal<T>> for Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> PartialOrd<&Decimal<T>>
+    for Decimal<T>
+{
     #[inline]
     fn partial_cmp(&self, other: &&Decimal<T>) -> Option<Ordering> {
         Some(cmp_impl(&self, &other))
     }
 }
 
-impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd<Decimal<T>> for &Decimal<T> {
+impl<T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq> PartialOrd<Decimal<T>>
+    for &Decimal<T>
+{
     #[inline]
     fn partial_cmp(&self, other: &Decimal<T>) -> Option<Ordering> {
         Some(cmp_impl(&self, &other))
@@ -108,20 +122,19 @@ impl<T: num::Integer + num::NumCast + Clone + Eq> PartialOrd<Decimal<T>> for &De
 
 // ######################### CONVERT ##########################################
 
-impl<U, T> From<U> for Decimal<T>
+impl<T> From<T> for Decimal<T>
 where
-    U: num::ToPrimitive,
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     #[inline]
-    fn from(value: U) -> Self {
-        Self::new(T::from(value).unwrap(), 0).normalize()
+    fn from(value: T) -> Self {
+        Self::new(value, 0).normalize()
     }
 }
 
 impl<T> FromStr for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Err = T::FromStrRadixErr;
 
@@ -155,7 +168,7 @@ where
 
 impl<T> fmt::Display for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.mantissa.is_zero() {
@@ -190,30 +203,30 @@ where
 
 impl<T> num::Zero for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn is_zero(&self) -> bool {
         self.mantissa.is_zero()
     }
 
     fn zero() -> Self {
-        Self::new(T::from(0).unwrap(), 0)
+        Self::new(T::from_u8(0).unwrap(), 0)
     }
 }
 
 impl<T> num::One for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn one() -> Self {
-        Self::new(T::from(1).unwrap(), 0)
+        Self::new(T::from_u8(1).unwrap(), 0)
     }
 }
 
 // ######################### ARITHMETICS ######################################
 impl<T> Neg for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq + num::Signed,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq + num::Signed,
 {
     type Output = Self;
 
@@ -224,7 +237,7 @@ where
 
 impl<T> AddAssign for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn add_assign(&mut self, other: Self) {
         let min_exp = std::cmp::min(self.exponent, other.exponent);
@@ -238,7 +251,7 @@ where
 
 impl<'a, T> AddAssign<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn add_assign(&mut self, other: &'a Self) {
         let min_exp = std::cmp::min(self.exponent, other.exponent);
@@ -252,7 +265,7 @@ where
 
 impl<T> Add for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -263,7 +276,7 @@ where
 
 impl<'a, T> Add<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -275,7 +288,7 @@ where
 
 impl<'a, T> Add<Decimal<T>> for &'a Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -286,7 +299,7 @@ where
 
 impl<'a, T> Add for &'a Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -299,7 +312,7 @@ where
 
 impl<T> SubAssign for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn sub_assign(&mut self, other: Self) {
         let min_exp = std::cmp::min(self.exponent, other.exponent);
@@ -313,7 +326,7 @@ where
 
 impl<'a, T> SubAssign<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn sub_assign(&mut self, other: &'a Self) {
         let min_exp = std::cmp::min(self.exponent, other.exponent);
@@ -327,7 +340,7 @@ where
 
 impl<T> Sub for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -338,7 +351,7 @@ where
 
 impl<'a, T> Sub<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -350,7 +363,7 @@ where
 
 impl<'a, T> Sub<Decimal<T>> for &'a Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -361,7 +374,7 @@ where
 
 impl<'a, T> Sub for &'a Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -374,7 +387,7 @@ where
 
 impl<T> MulAssign for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn mul_assign(&mut self, other: Self) {
         self.mantissa = self.mantissa.clone() * other.mantissa;
@@ -385,7 +398,7 @@ where
 
 impl<'a, T> MulAssign<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn mul_assign(&mut self, other: &'a Self) {
         self.mantissa = self.mantissa.clone() * other.mantissa.clone();
@@ -396,7 +409,7 @@ where
 
 impl<T> Mul for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -407,7 +420,7 @@ where
 
 impl<'a, T> Mul<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -419,7 +432,7 @@ where
 
 impl<'a, T> Mul<Decimal<T>> for &'a Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -430,7 +443,7 @@ where
 
 impl<'a, T> Mul for &'a Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -443,7 +456,7 @@ where
 
 impl<T> DivAssign for Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     #[inline]
     fn div_assign(&mut self, other: Self) {
@@ -453,7 +466,7 @@ where
 
 impl<'a, T> DivAssign<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     #[inline]
     fn div_assign(&mut self, other: &'a Self) {
@@ -463,7 +476,7 @@ where
 
 impl<T> Div for Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -475,7 +488,7 @@ where
 
 impl<'a, T> Div<&'a Decimal<T>> for Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Self;
 
@@ -488,7 +501,7 @@ where
 
 impl<'a, T> Div<Decimal<T>> for &'a Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -500,7 +513,7 @@ where
 
 impl<'a, T> Div for &'a Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone + Eq,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     type Output = Decimal<T>;
 
@@ -521,7 +534,7 @@ enum Round {
 
 impl<T> Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone,
 {
     #[inline]
     pub fn new(mantissa: T, exponent: i8) -> Self {
@@ -530,7 +543,7 @@ where
 
     pub fn from_dec<U>(other: Decimal<U>) -> Self
     where
-        U: num::Integer + num::NumCast + Clone + Into<T>,
+        U: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Into<T>,
     {
         Decimal {
             mantissa: other.mantissa.into(),
@@ -645,13 +658,13 @@ where
 
     #[inline]
     fn num_10() -> T {
-        T::from(10).unwrap()
+        T::from_u8(10).unwrap()
     }
 }
 
 impl<T> Decimal<T>
 where
-    T: num::Integer + num::Bounded + num::NumCast + Clone,
+    T: num::Integer + num::Bounded + num::FromPrimitive + num::ToPrimitive + Clone,
 {
     fn inpl_div_assign(&mut self, other: &Self) {
         let max_len = max_dec_len::<T>();

@@ -28,7 +28,7 @@ impl std::error::Error for ConversionError {}
 
 impl<T> FromSql for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq,
 {
     fn from_sql(
         ty: &Type,
@@ -55,12 +55,12 @@ where
                     return Err(Box::new(ConversionError::WrongSize));
                 }
                 let mut mantissa = T::zero();
-                let mantissa_part_mul = T::from(10000).unwrap();
+                let mantissa_part_mul = T::from_u16(10000).unwrap();
                 for _ in 0..len as usize {
                     let mantissa_part = cursor.read_i16::<BigEndian>().unwrap();
 
                     mantissa =
-                        mantissa * mantissa_part_mul.clone() + T::from(mantissa_part).unwrap();
+                        mantissa * mantissa_part_mul.clone() + T::from_i16(mantissa_part).unwrap();
                 }
                 if neg {
                     mantissa = T::zero() - mantissa;
@@ -84,8 +84,10 @@ where
 
 impl<T> ToSql for Decimal<T>
 where
-    T: num::Integer + num::NumCast + Clone + Eq + std::fmt::Debug,
+    T: num::Integer + num::FromPrimitive + num::ToPrimitive + Clone + Eq + std::fmt::Debug,
 {
+    to_sql_checked!();
+
     fn to_sql(
         &self,
         ty: &Type,
@@ -106,7 +108,7 @@ where
                 };
 
                 let mut mantissa_parts: Vec<i16> = vec![];
-                let mantissa_part_mul = T::from(10000).unwrap();
+                let mantissa_part_mul = T::from_u16(10000).unwrap();
                 loop {
                     let (qt, rem) = mantissa.div_rem(&mantissa_part_mul);
                     mantissa_parts.push(rem.to_i16().unwrap());
@@ -142,14 +144,14 @@ where
             _ => false,
         }
     }
-
-    to_sql_checked!();
 }
 
 #[cfg(test)]
 mod test {
-    use postgres::types::{FromSql, IsNull, ToSql, Type, NUMERIC};
-    use postgres::{Connection, TlsMode};
+    use postgres::{
+        types::{FromSql, IsNull, ToSql, Type, NUMERIC},
+        Connection, TlsMode,
+    };
 
     use crate::D64;
 

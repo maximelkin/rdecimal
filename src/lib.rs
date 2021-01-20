@@ -172,7 +172,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.mantissa.is_zero() {
-            return write!(f, "0.");
+            return write!(f, "0");
         }
 
         if self.exponent >= 0 {
@@ -181,7 +181,7 @@ where
             for _ in 0..self.exponent.abs() {
                 suffix.push('0');
             }
-            write!(f, "{}{}.", value, suffix)
+            write!(f, "{}{}", value, suffix)
         } else {
             let sign = if self.mantissa < T::zero() { "-" } else { "" };
             let norm = self.normalize();
@@ -814,7 +814,7 @@ mod decimal_tests {
     #[test]
     fn to_string_test() {
         assert_eq!(Decimal::new(5, -1).to_string(), "0.5");
-        assert_eq!(Decimal::new(5, 3).to_string(), "5000.");
+        assert_eq!(Decimal::new(5, 3).to_string(), "5000");
         assert_eq!(Decimal::new(-5, -3).to_string(), "-0.005");
     }
 

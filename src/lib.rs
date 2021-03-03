@@ -846,6 +846,8 @@ mod decimal_tests {
 
     #[test]
     fn fmt_test() {
+        assert_eq!(format!("{}", Decimal::from(1).mul(Decimal::from(30000))), "30000");
+        assert_eq!(format!("{}", Decimal::from(30001).div(Decimal::from(30000))), "1.00003333");
         assert_eq!(format!("{}", Decimal::from(1).div(Decimal::from(30000))), "0.0000333333333");
     }
 }

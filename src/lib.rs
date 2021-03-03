@@ -185,15 +185,27 @@ where
         } else {
             let sign = if self.mantissa < T::zero() { "-" } else { "" };
             let norm = self.normalize();
-            let multiplier = num::pow(Self::num_10(), norm.exponent.abs() as usize);
-            let (qt, rem) = norm.mantissa.div_rem(&multiplier);
+            // no zeroes at end of mantissa, because of .normalize()
+            // cases:
+            let mantissa_str = norm.mantissa.to_i128().unwrap().abs().to_string();
+
+            let exponent_abs = norm.exponent.abs() as usize;
+            let without_sign = if mantissa_str.len() > exponent_abs {
+                // number > 1
+                let mut with_dot = mantissa_str.clone();
+                with_dot.insert(mantissa_str.len() - exponent_abs, '.');
+                with_dot
+            } else {
+                // number < 1
+                // mantissa should be fully written after .
+                // and padded on left to complement length to exponent (m=123, exp=5 -> 0.00123)
+                format!("0.{:0>width$}", mantissa_str, width = exponent_abs)
+            };
             write!(
                 f,
-                "{}{}.{:0width$}",
+                "{}{}",
                 sign,
-                qt.to_i128().unwrap().abs(),
-                rem.to_i128().unwrap().abs(),
-                width = norm.exponent.abs() as usize,
+                without_sign
             )
         }
     }
@@ -842,5 +854,12 @@ mod decimal_tests {
 
         assert_eq!(Decimal::new(1, -6).round_ceil(-3), Decimal::new(1, -3));
         assert_eq!(Decimal::new(-1, -6).round_ceil(-3), Decimal::new(0, 0));
+    }
+
+    #[test]
+    fn fmt_test() {
+        assert_eq!(format!("{}", Decimal::from(1).mul(Decimal::from(30000))), "30000");
+        assert_eq!(format!("{}", Decimal::from(30001).div(Decimal::from(30000))), "1.00003333");
+        assert_eq!(format!("{}", Decimal::from(1).div(Decimal::from(30000))), "0.0000333333333");
     }
 }

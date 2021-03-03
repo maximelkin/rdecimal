@@ -149,7 +149,7 @@ where
 #[cfg(test)]
 mod test {
     use postgres::{
-        types::{FromSql, IsNull, ToSql, Type, NUMERIC},
+        types::{FromSql, ToSql, NUMERIC},
         Connection, TlsMode,
     };
 

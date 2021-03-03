@@ -843,4 +843,9 @@ mod decimal_tests {
         assert_eq!(Decimal::new(1, -6).round_ceil(-3), Decimal::new(1, -3));
         assert_eq!(Decimal::new(-1, -6).round_ceil(-3), Decimal::new(0, 0));
     }
+
+    #[test]
+    fn fmt_test() {
+        assert_eq!(format!("{}", Decimal::from(1).div(Decimal::from(30000))), "0.0000333333333");
+    }
 }

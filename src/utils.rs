@@ -1,4 +1,7 @@
 pub fn dec_len<T: num::Integer + num::ToPrimitive>(value: &T) -> usize {
+    if value.is_zero() {
+        return 1;
+    }
     let v = value.to_f64().expect("Unable to conver to i128").abs();
     v.log10().floor() as usize + 1
 }
